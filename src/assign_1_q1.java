@@ -8,7 +8,7 @@ public class assign_1_q1 {
         for(int i = 0; i < t ; i++){
             name = s.next();
             roll = s.next();
-            Students stu = new Students(name,roll);
+            Students stu = new Students(name,roll,0);
             stu.print();
         }
     }

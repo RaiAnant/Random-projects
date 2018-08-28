@@ -12,7 +12,7 @@ public class assign_1_q2 {
                 roll[j] = s.next();
                 name[j] = s.next();
             }
-            StudentList stuLi = new StudentList(n,name,roll);
+            StudentList stuLi = new StudentList(n,name,roll,0);
             stuLi.sort();
             stuLi.printAll();
         }

@@ -10,7 +10,7 @@ public class studentTaMapping {
 
     public void setStu(String[] name, String[] roll){
         if(name.length==roll.length) {
-            this.stu = new StudentList(name.length, name, roll);
+            this.stu = new StudentList(name.length, name, roll,0);
         }
         else{
             System.out.println("Wrong inputs!");
@@ -19,7 +19,7 @@ public class studentTaMapping {
 
     public void setTa(String[] name, String[] roll){
         if(name.length==roll.length) {
-            this.ta= new StudentList(name.length, name, roll);
+            this.ta= new StudentList(name.length, name, roll,0);
         }
         else{
             System.out.println("Wrong inputs!");
