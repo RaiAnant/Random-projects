@@ -1,20 +1,26 @@
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class TimeTable {
-    private CourseSlot[][] timeTable;
+    private int noOfBatch;
+    private CourseSlot[][][] timeTable;
     private ArrayList<CourseSlot> allSLots;
-    private CourseSlot[] satSlots;
-    private int[] workLoad;
-    private int index,satIndex ;
+    private ArrayList<CourseSlot>[] satSlots ;
+    private static Professor[] professors;
+    private int[][] workLoad;
     private static final int LOAD_MAX = 100;
 
     private static final String[] timeSlots = {"0900","1000","1115","1215","0300","0400","0500"};
     private static final String[] daySlots = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 
-    public TimeTable() {
-        this.timeTable = new CourseSlot[5][7];
-        this.workLoad = new int[5];
-        this.satSlots = new CourseSlot[7];
+    public TimeTable(int noBatch) {
+        noOfBatch = noBatch;
+        this.timeTable = new CourseSlot[noBatch][5][7];
+        this.workLoad = new int[noBatch][5];
+        satSlots = new ArrayList[noBatch];
+        for(int i = 0; i<noBatch;i++){
+            this.satSlots[i] = new ArrayList<>();
+        }
         this.allSLots = new ArrayList<CourseSlot>();
     }
 
@@ -36,6 +42,76 @@ public class TimeTable {
         }
     }
 
+    public static String getDayFromIndex(int index){
+        return daySlots[index];
+    }
+
+    public static void setProfessors(Professor[] proffs) {
+        professors = proffs;
+    }
+
+    public Professor getProfByName(String name){
+        for(int i = 0; i < professors.length;i++){
+            if(professors[i].getName().compareTo(name)==0){
+                return professors[i];
+            }
+        }
+        return null;
+    }
+
+    public String getDaySlotFromIndex(int index){
+        return daySlots[index];
+    }
+
+    public CourseSlot getClassAt(int i, int j,int noBatch){
+        return timeTable[noBatch][i][j];
+    }
+
+    public int getNoOfClassOnSat(int batchNo){
+        return satSlots[batchNo].size();
+    }
+
+    public CourseSlot getSatClassAt(int i,int batchNo){
+        return satSlots[batchNo].get(i);
+    }
+
+    public CourseSlot removeSlotFromTimeTable(int slotNo, String courseCode){
+        for(int i = 0 ; i<noOfBatch;i++){
+            for(int j = 0 ; j <6;j++){
+                for(int k = 0 ; k < 7 ;k++){
+                    if(j==5){
+                        break;
+                    }
+                    if(timeTable[i][j][k]==null){
+                        continue;
+                    }else if(timeTable[i][j][k].getSLotNo() == slotNo && timeTable[i][j][k].getCourseCode().compareTo(courseCode)==0){
+                        CourseSlot courseSlot =  timeTable[i][j][k];
+                        int dur = timeTable[i][j][k].getDuration();
+                        for(int l=0;l<dur;l++){
+                            timeTable[i][j][k+l]=null;
+                            workLoad[i][j]--;
+                        }
+                        return courseSlot;
+                    }
+                }
+                if(j==5){
+                    for(int k=0;k<satSlots[i].size();k++){
+                        if(satSlots[i].get(k).getSLotNo() == slotNo && satSlots[i].get(k).getCourseCode().compareTo(courseCode)==0){
+                            CourseSlot courseSlot =  satSlots[i].get(k);
+                            satSlots[i].remove(courseSlot);
+                            return courseSlot;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public void resetAllSLots(){
+        allSLots.clear();
+    }
+
     public static String getTimeFromIndex(int index,int duration){
         int startingHr = 9;
         switch (index){
@@ -49,7 +125,11 @@ public class TimeTable {
 
             case 2:
                 startingHr=startingHr + index;
-                return String.format("%d:15-%d:15",startingHr,startingHr+duration);
+                int finalHr = startingHr+duration;
+                if(finalHr>12){
+                    finalHr = finalHr%12;
+                }
+                return String.format("%d:15-%d:15",startingHr,finalHr);
 
             case 3:
                 startingHr=startingHr + index;
@@ -94,20 +174,20 @@ public class TimeTable {
         }
     }
 
-    private void sortSatSlots(){
-        int size = satSlots.length;
-        for(int i = 0 ;i < size-1; i++){
-            for(int j = 0 ; j < size -i -1; j++){
-                if(satSlots[j].getCourseCode().compareTo(satSlots[j+1].getCourseCode()) > 0){
-                    CourseSlot temp = satSlots[j];
-                    satSlots[j] = satSlots[j+1] ;
-                    satSlots[j+1] = temp;
-                }
-            }
-        }
-    }
+//    private void sortSatSlots(){
+//        int size = satIndex;
+//        for(int i = 0 ;i < size-1; i++){
+//            for(int j = 0 ; j < size -i -1; j++){
+//                if(satSlots.get(j).getCourseCode().compareTo(satSlots.get(j+1).getCourseCode()) > 0){
+//                    CourseSlot temp = satSlots.get(j);
+//                    satSlots.set(j,satSlots.get(j+1));
+//                    satSlots.set(j+1,temp);
+//                }
+//            }
+//        }
+//    }
 
-    private boolean canFillSlotAt(int index1,int index2,CourseSlot s){
+    private boolean canFillSlotAt(int index1, int index2, int batchNo,CourseSlot s){
         if((index1==1||index1==3||index1==6)&&s.getDuration()>1){
             return false;
         }
@@ -118,7 +198,10 @@ public class TimeTable {
             return false;
         }
         for(int i=0;i<s.getDuration();i++){
-            if(timeTable[index2][index1+i]!=null){
+            if(timeTable[batchNo][index2][index1+i]!=null){
+                return false;
+            }
+            else if(!getProfByName(s.getInstName()).canFillSlotAt(index2,index1+i)){
                 return false;
             }
         }
@@ -146,81 +229,95 @@ public class TimeTable {
             boolean flag = false;
             int[] dayPrefArr = allSLots.get(i).getDayPrefArray();
             if(dayPrefArr==null){
+                //System.out.print("---No Day Pref Found---\n\n");
                 dayPrefArr = new int[]{-1};
             }
-            for(int l=0;l<2;l++) {
-                String[] timePrefArr;
-                if(l==0) {
-                    timePrefArr = allSLots.get(i).getTimePrefArray();
-                    if(timePrefArr==null){
-                        if(dayPrefArr[0]==-1){
-
-                            break;
-                        }
-                        continue;
-                    }
-                }else{
-                    timePrefArr = timeSlots.clone();
-                }
-
-                for (int j = 0; j < timePrefArr.length; j++) {
-                    int[] tempWorkLoad = workLoad.clone();
-                    for (int k : dayPrefArr) {
+            String[] timePrefArr;
+            timePrefArr = allSLots.get(i).getTimePrefArray();
+            int len=0;
+            if(timePrefArr!=null){
+                len = timePrefArr.length;
+            }
+            for (int j = 0; j < len; j++) {
+                int[] tempWorkLoad = workLoad[allSLots.get(i).getBatchNo()].clone();
+                for (int k : dayPrefArr) {
+                    if(dayPrefArr.length==1)
+                        //System.out.print("Looking spot at "+ Integer.toString(k)+"\n\n");
                         if(k==-1){
                             break;
                         }
-                        tempWorkLoad[k - 1] = LOAD_MAX;
-                        if (canFillSlotAt(getIndexFromTime(timePrefArr[j]), k - 1, allSLots.get(i))) {
-                            for(int m=0;m<allSLots.get(i).getDuration();m++){
-                                //System.out.print("Filling "+allSLots.get(i).getCourseCode()+ " at "+Integer.toString(k - 1)+", "+Integer.toString(getIndexFromTime(timePrefArr[j])+m)+"\n");
-                                timeTable[k - 1][getIndexFromTime(timePrefArr[j])+m] = allSLots.get(i);
-                                workLoad[k-1]++;
-                            }
-                            flag = true;
-                            break;
+                    tempWorkLoad[k - 1] = LOAD_MAX;
+                    if (canFillSlotAt(getIndexFromTime(timePrefArr[j]), k - 1, allSLots.get(i).getBatchNo(),allSLots.get(i))) {
+                        for(int m=0;m<allSLots.get(i).getDuration();m++){
+                            //System.out.print("Filling - "+allSLots.get(i).getCourseCode()+" at "+Integer.toString(k - 1)+","+Integer.toString(getIndexFromTime(timePrefArr[j])+m)+"\n");
+                            //System.out.print("Filling "+allSLots.get(i).getCourseCode()+ " at "+Integer.toString(k - 1)+", "+Integer.toString(getIndexFromTime(timePrefArr[j])+m)+"\n");
+                            timeTable[allSLots.get(i).getBatchNo()][k - 1][getIndexFromTime(timePrefArr[j])+m] = allSLots.get(i);
+                            getProfByName(allSLots.get(i).getInstName()).fillCourseSlotAt(k - 1,getIndexFromTime(timePrefArr[j])+m,allSLots.get(i));
+                            workLoad[allSLots.get(i).getBatchNo()][k-1]++;
                         }
-                    }
-
-                    if (flag) {
+                        flag = true;
                         break;
                     }
+                }
 
-                    int nextDay = getMinWorkLoadDay(tempWorkLoad);
+                if (flag) {
+                    break;
+                }
 
-                    while (nextDay != -1) {
-                        tempWorkLoad[nextDay] = LOAD_MAX;
-                        if (canFillSlotAt(getIndexFromTime(timePrefArr[j]), nextDay, allSLots.get(i))) {
-                            for(int m=0;m<allSLots.get(i).getDuration();m++){
-                                //System.out.print("Filling "+allSLots.get(i).getCourseCode()+ " at "+Integer.toString(nextDay        )+", "+Integer.toString(getIndexFromTime(timePrefArr[j])+m)+"\n");
-                                timeTable[nextDay][getIndexFromTime(timePrefArr[j])+m] = allSLots.get(i);
-                                workLoad[nextDay]++;
-                            }
-                            flag = true;
-                            break;
+                int nextDay = getMinWorkLoadDay(tempWorkLoad);
+
+                while (nextDay != -1) {
+                    tempWorkLoad[nextDay] = LOAD_MAX;
+                    if (canFillSlotAt(getIndexFromTime(timePrefArr[j]), nextDay, allSLots.get(i).getBatchNo(),allSLots.get(i))) {
+                        for(int m=0;m<allSLots.get(i).getDuration();m++){
+                            //System.out.print("Filling "+allSLots.get(i).getCourseCode()+ " at "+Integer.toString(nextDay        )+", "+Integer.toString(getIndexFromTime(timePrefArr[j])+m)+"\n");
+                            timeTable[allSLots.get(i).getBatchNo()][nextDay][getIndexFromTime(timePrefArr[j])+m] = allSLots.get(i);
+                            getProfByName(allSLots.get(i).getInstName()).fillCourseSlotAt(nextDay,getIndexFromTime(timePrefArr[j])+m,allSLots.get(i));
+                            workLoad[allSLots.get(i).getBatchNo()][nextDay]++;
                         }
-                        nextDay = getMinWorkLoadDay(tempWorkLoad);
-                    }
-                    if (flag) {
+                        flag = true;
                         break;
                     }
+                    nextDay = getMinWorkLoadDay(tempWorkLoad);
                 }
                 if (flag) {
                     break;
                 }
             }
 
-            int[] tempWorkLoad = workLoad.clone();
+
+            int[] tempWorkLoad = workLoad[allSLots.get(i).getBatchNo()].clone();
+            for (int k : dayPrefArr) {
+                if(k==-1||flag){
+                    break;
+                }
+                tempWorkLoad[k - 1] = LOAD_MAX;
+                for(int j=0;j<7;j++) {
+                    if (canFillSlotAt(j, k - 1,allSLots.get(i).getBatchNo(), allSLots.get(i))) {
+                        for (int m = 0; m < allSLots.get(i).getDuration(); m++) {
+                            //System.out.print("Filling - "+allSLots.get(i).getCourseCode()+" at "+Integer.toString(k - 1)+","+Integer.toString(getIndexFromTime(timePrefArr[j])+m)+"\n");
+                            //System.out.print("Filling " + allSLots.get(i).getCourseCode() + " at " + Integer.toString(k - 1) + ", " + Integer.toString(j + m) + "\n");
+                            timeTable[allSLots.get(i).getBatchNo()][k - 1][j + m] = allSLots.get(i);
+                            getProfByName(allSLots.get(i).getInstName()).fillCourseSlotAt(k - 1,j+m,allSLots.get(i));
+                            workLoad[allSLots.get(i).getBatchNo()][k - 1]++;
+                        }
+                        flag = true;
+                        break;
+                    }
+                }
+            }
             int nextDay = getMinWorkLoadDay(tempWorkLoad);
 
             while (nextDay != -1 && !flag) {
                 tempWorkLoad[nextDay] = LOAD_MAX;
                 for(int j=0;j<7;j++){
 
-                    if (canFillSlotAt(j, nextDay, allSLots.get(i))) {
+                    if (canFillSlotAt(j, nextDay,allSLots.get(i).getBatchNo(), allSLots.get(i))) {
                         for(int m=0;m<allSLots.get(i).getDuration();m++){
                             //System.out.print("Filling "+allSLots.get(i).getCourseCode()+ " at "+Integer.toString(nextDay        )+", "+Integer.toString(j+m)+"\n");
-                            timeTable[nextDay][j+m] = allSLots.get(i);
-                            workLoad[nextDay]++;
+                            timeTable[allSLots.get(i).getBatchNo()][nextDay][j+m] = allSLots.get(i);
+                            getProfByName(allSLots.get(i).getInstName()).fillCourseSlotAt(nextDay,j+m,allSLots.get(i));
+                            workLoad[allSLots.get(i).getBatchNo()][nextDay]++;
                         }
                         flag = true;
                         break;
@@ -231,30 +328,13 @@ public class TimeTable {
             }
 
             if (!flag) {
-                satSlots[satIndex] = allSLots.get(i);
-                satIndex++;
+                //System.out.print("Filling "+allSLots.get(i).getCourseCode()+ " in sat"+"\n");
+                satSlots[allSLots.get(i).getBatchNo()].add(allSLots.get(i));
+                getProfByName(allSLots.get(i).getInstName()).fillCourseSlotAt(5,-1,allSLots.get(i));
             }
         }
-        sortSatSlots();
-    }
-
-
-    public void printTimeTable(){
-        for(int i=0;i<6;i++){
-            System.out.print(daySlots[i]+"\n");
-            for(int j=0;j<7;j++){
-                if(i==5){
-                    System.out.print(satSlots[j].getCourseCode()+" "+satSlots[j].getCourseName()+" "+satSlots[j].getInstName()+"\n");
-                }
-                else if(timeTable[i][j]==null){
-                    continue;
-                }
-                else {
-                    System.out.print(getTimeFromIndex(j,timeTable[i][j].getDuration())+" "+timeTable[i][j].getCourseCode()+" "+timeTable[i][j].getCourseName()+" "+timeTable[i][j].getInstName()+"\n");
-                    j=j+timeTable[i][j].getDuration()-1;
-                }
-            }
-            System.out.print("\n");
+        for(int i = 0 ;i<satSlots.length;i++) {
+            Collections.sort(satSlots[i]);
         }
     }
 
